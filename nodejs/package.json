@@ -1,0 +1,8 @@
+{
+  "name": "lambda-layer-nodejs",
+  "version": "1.0.0",
+  "description": "Node.js dependencies for Lambda layer with swagger-ui-offline-packager",
+  "dependencies": {
+    "swagger-ui-offline-packager": "^1.0.0"
+  }
+}
