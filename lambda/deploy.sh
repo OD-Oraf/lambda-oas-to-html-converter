@@ -31,9 +31,11 @@ echo ""
 echo "📋 Copying modules..."
 cp fetcher.py build/lambda/
 cp converter.py build/lambda/
+cp auth.py build/lambda/
 cp lambda/lambda_function.py build/lambda/
 echo "  ✓ Copied fetcher.py"
 echo "  ✓ Copied converter.py"
+echo "  ✓ Copied auth.py"
 echo "  ✓ Copied lambda_function.py"
 echo ""
 
