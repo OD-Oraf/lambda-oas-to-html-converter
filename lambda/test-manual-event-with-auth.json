@@ -1,0 +1,6 @@
+{
+  "s3_bucket": "my-bucket-name",
+  "urls_file": "urls.txt",
+  "use_auth": true,
+  "verbose": true
+}

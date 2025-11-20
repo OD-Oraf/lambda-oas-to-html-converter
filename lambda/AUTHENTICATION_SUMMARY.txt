@@ -1,0 +1,138 @@
+## ✅ Authentication Module Complete - MuleSoft Anypoint Integration
+
+### What Was Created:
+
+1. **auth.py** - OAuth token generation module
+   - Supports AWS Secrets Manager (Lambda)
+   - Supports environment variables (local)
+   - JSON request format (MuleSoft Anypoint)
+   - Default URL: https://anypoint.mulesoft.com/accounts/api/v2/oauth2/token
+
+2. **Updated fetcher.py** - Added auth support
+   - Optional authentication via use_auth parameter
+   - Automatic token generation
+   - Bearer token in Authorization header
+
+3. **Updated lambda_function.py** - Auth integration
+   - Reads credentials from Secrets Manager
+   - Passes auth settings to fetcher
+   - Event parameters: use_auth, token_url (optional)
+
+4. **Updated execution-role.json** - IAM permissions
+   - Added secretsmanager:GetSecretValue permission
+   - Resource: token_cred secret
+
+5. **Updated deploy.sh** - Deployment script
+   - Now includes auth.py in package
+
+6. **setup-secret.sh** - Secret setup automation
+   - Interactive credential entry
+   - Creates/updates token_cred secret
+   - Validates credentials
+
+7. **Documentation**
+   - AUTHENTICATION.md - Complete guide
+   - AUTH_QUICK_START.md - 5-minute setup
+   - test-manual-event-with-auth.json - Test event
+
+---
+
+### MuleSoft Anypoint Integration
+
+**Token Endpoint:**
+https://anypoint.mulesoft.com/accounts/api/v2/oauth2/token
+
+**Request Format:**
+```json
+{
+  "grant_type": "client_credentials",
+  "client_id": "your_client_id",
+  "client_secret": "your_client_secret"
+}
+```
+
+**Equivalent curl:**
+```bash
+curl --location 'https://anypoint.mulesoft.com/accounts/api/v2/oauth2/token' \
+  --header 'Content-Type: application/json' \
+  --data '{
+    "grant_type": "client_credentials",
+    "client_id": "YOUR_CLIENT_ID",
+    "client_secret": "YOUR_CLIENT_SECRET"
+  }'
+```
+
+---
+
+### Usage:
+
+**Lambda Event:**
+```json
+{
+  "s3_bucket": "my-bucket",
+  "use_auth": true
+}
+```
+
+**Lambda Invocation:**
+```bash
+aws lambda invoke \
+  --function-name lambda-layers-demo \
+  --payload '{"s3_bucket":"my-bucket","use_auth":true}' \
+  response.json
+```
+
+**Local Python:**
+```python
+from fetcher import fetch_oas_from_url
+
+result = fetch_oas_from_url(
+    url="https://anypoint.mulesoft.com/exchange/api/v2/assets/...",
+    use_auth=True
+)
+```
+
+---
+
+### Setup Steps:
+
+1. Create MuleSoft Connected App (get client_id, client_secret)
+2. Run: ./setup-secret.sh (creates AWS secret)
+3. Run: ./UPDATE_ROLE.sh (adds IAM permissions)
+4. Run: ./deploy.sh (deploys with auth.py)
+5. Test with use_auth: true
+
+---
+
+### Key Features:
+
+✅ JSON request format (MuleSoft Anypoint standard)
+✅ Default token URL (can be overridden)
+✅ Secrets Manager integration (secure)
+✅ Environment variables (local dev)
+✅ Optional authentication (backward compatible)
+✅ Automatic token generation
+✅ Bearer token in Authorization header
+
+---
+
+### Files:
+
+- auth.py - Authentication module
+- fetcher.py - Updated with auth support
+- lambda/lambda_function.py - Auth integration
+- lambda/execution-role.json - IAM policy
+- lambda/deploy.sh - Includes auth.py
+- lambda/setup-secret.sh - Secret setup script
+- lambda/test-manual-event-with-auth.json - Test event
+- AUTHENTICATION.md - Complete documentation
+- AUTH_QUICK_START.md - Quick start guide
+
+---
+
+### Backward Compatible:
+
+✅ Works without authentication (default)
+✅ Only enabled when use_auth: true
+✅ No breaking changes to existing functionality
+
