@@ -42,6 +42,7 @@ def lambda_handler(event, context):
     {
         "s3_bucket": "my-bucket",
         "urls_file": "urls.txt",  # optional, defaults to "urls.txt"
+        "use_auth": true,         # optional, defaults to false (MuleSoft Anypoint)
         "verbose": true           # optional, defaults to false
     }
     
@@ -215,7 +216,6 @@ def _batch_process_from_s3(event):
     urls_file = event.get('urls_file', 'urls.txt')
     verbose = event.get('verbose', False)
     use_auth = event.get('use_auth', False)
-    token_url = event.get('token_url')
     
     print(f"Bucket: {bucket}")
     print(f"URLs file: {urls_file}")
@@ -249,7 +249,7 @@ def _batch_process_from_s3(event):
             
             try:
                 # Fetch OAS
-                fetch_result = fetch_oas_from_url(url, use_auth=use_auth, token_url=token_url)
+                fetch_result = fetch_oas_from_url(url, use_auth=use_auth)
                 
                 if not fetch_result['success']:
                     print(f"  ✗ Fetch failed: {fetch_result['error']}\n")

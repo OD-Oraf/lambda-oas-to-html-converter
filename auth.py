@@ -1,12 +1,23 @@
 """
 Authentication Module
-Handles OAuth token generation for API requests
+Handles OAuth token generation for MuleSoft Anypoint Platform
+
+Hardcoded Configuration:
+- Token URL: https://anypoint.mulesoft.com/accounts/api/v2/oauth2/token
+- Secret Name: token_cred
+- Secret Keys: client_id, client_secret
 """
 
 import os
 import json
 import requests
-from typing import Optional, Dict
+from typing import Dict
+
+# Hardcoded OAuth Configuration - These never change
+TOKEN_URL = "https://anypoint.mulesoft.com/accounts/api/v2/oauth2/token"
+SECRET_NAME = "token_cred"
+SECRET_KEY_CLIENT_ID = "client_id"
+SECRET_KEY_CLIENT_SECRET = "client_secret"
 
 
 def get_credentials() -> Dict[str, str]:
@@ -29,6 +40,10 @@ def _get_credentials_from_secrets_manager() -> Dict[str, str]:
     """
     Get credentials from AWS Secrets Manager
     
+    Uses hardcoded configuration:
+    - Secret Name: token_cred
+    - Secret Keys: client_id, client_secret
+    
     Returns:
         Dictionary with client_id and client_secret
     """
@@ -36,8 +51,11 @@ def _get_credentials_from_secrets_manager() -> Dict[str, str]:
         import boto3
         from botocore.exceptions import ClientError
         
-        secret_name = "token_cred"
         region_name = os.environ.get('AWS_REGION', 'us-east-1')
+        
+        print(f"  📦 Retrieving secret from AWS Secrets Manager...")
+        print(f"     Secret Name: {SECRET_NAME}")
+        print(f"     Region: {region_name}")
         
         # Create Secrets Manager client
         session = boto3.session.Session()
@@ -47,35 +65,60 @@ def _get_credentials_from_secrets_manager() -> Dict[str, str]:
         )
         
         try:
+            print(f"  🔍 Calling GetSecretValue API...")
             get_secret_value_response = client.get_secret_value(
-                SecretId=secret_name
+                SecretId=SECRET_NAME
             )
+            print(f"  ✓ Secret retrieved successfully from Secrets Manager")
+            
         except ClientError as e:
             error_code = e.response['Error']['Code']
+            print(f"  ✗ Secrets Manager API error: {error_code}")
+            
             if error_code == 'ResourceNotFoundException':
-                raise Exception(f"Secret '{secret_name}' not found in Secrets Manager")
+                raise Exception(
+                    f"Secret '{SECRET_NAME}' not found in Secrets Manager (Region: {region_name}). "
+                    f"Run './setup-secret.sh' to create it."
+                )
             elif error_code == 'InvalidRequestException':
-                raise Exception(f"Invalid request for secret '{secret_name}'")
+                raise Exception(f"Invalid request for secret '{SECRET_NAME}'")
             elif error_code == 'InvalidParameterException':
-                raise Exception(f"Invalid parameter for secret '{secret_name}'")
+                raise Exception(f"Invalid parameter for secret '{SECRET_NAME}'")
+            elif error_code == 'AccessDeniedException':
+                raise Exception(
+                    f"Access denied to secret '{SECRET_NAME}'. "
+                    f"Ensure Lambda execution role has 'secretsmanager:GetSecretValue' permission."
+                )
             else:
                 raise Exception(f"Error retrieving secret: {e}")
         
         # Parse secret
+        print(f"  🔓 Parsing secret value...")
         secret = json.loads(get_secret_value_response['SecretString'])
         
-        if 'client_id' not in secret or 'client_secret' not in secret:
-            raise Exception("Secret must contain 'client_id' and 'client_secret' keys")
+        # Validate secret structure using hardcoded keys
+        if SECRET_KEY_CLIENT_ID not in secret:
+            raise Exception(
+                f"Secret '{SECRET_NAME}' missing '{SECRET_KEY_CLIENT_ID}' key. "
+                f"Expected format: {{\"{SECRET_KEY_CLIENT_ID}\": \"...\", \"{SECRET_KEY_CLIENT_SECRET}\": \"...\"}}"
+            )
+        if SECRET_KEY_CLIENT_SECRET not in secret:
+            raise Exception(
+                f"Secret '{SECRET_NAME}' missing '{SECRET_KEY_CLIENT_SECRET}' key. "
+                f"Expected format: {{\"{SECRET_KEY_CLIENT_ID}\": \"...\", \"{SECRET_KEY_CLIENT_SECRET}\": \"...\"}}"
+            )
         
-        print(f"  ✓ Retrieved credentials from Secrets Manager")
+        print(f"  ✓ Secret parsed and validated")
+        print(f"     Client ID: {secret[SECRET_KEY_CLIENT_ID][:12]}... (length: {len(secret[SECRET_KEY_CLIENT_ID])})")
+        print(f"     Client Secret: {'*' * 12}... (length: {len(secret[SECRET_KEY_CLIENT_SECRET])})")
         
         return {
-            'client_id': secret['client_id'],
-            'client_secret': secret['client_secret']
+            'client_id': secret[SECRET_KEY_CLIENT_ID],
+            'client_secret': secret[SECRET_KEY_CLIENT_SECRET]
         }
         
     except Exception as e:
-        print(f"  ✗ Failed to retrieve from Secrets Manager: {e}")
+        print(f"  ✗ Failed to retrieve credentials from Secrets Manager: {e}")
         raise
 
 
@@ -105,18 +148,13 @@ def _get_credentials_from_env() -> Dict[str, str]:
     }
 
 
-def generate_bearer_token(
-    token_url: Optional[str] = None,
-    client_id: Optional[str] = None,
-    client_secret: Optional[str] = None
-) -> Dict[str, any]:
+def generate_bearer_token() -> Dict[str, any]:
     """
     Generate OAuth bearer token for MuleSoft Anypoint Platform
     
-    Args:
-        token_url: OAuth token endpoint URL (defaults to MuleSoft Anypoint)
-        client_id: Optional client ID (if not provided, fetched from credentials)
-        client_secret: Optional client secret (if not provided, fetched from credentials)
+    Uses hardcoded configuration:
+    - Token URL: https://anypoint.mulesoft.com/accounts/api/v2/oauth2/token
+    - Credentials from Secrets Manager (Lambda) or environment variables (local)
     
     Returns:
         Dictionary with:
@@ -125,23 +163,27 @@ def generate_bearer_token(
         - expires_in: int (token expiration in seconds)
         - error: str (if failed)
     """
-    # Default to MuleSoft Anypoint token URL
-    if not token_url:
-        token_url = os.environ.get('TOKEN_URL', 'https://anypoint.mulesoft.com/accounts/api/v2/oauth2/token')
-    
-    print(f"🔑 Generating bearer token...")
-    print(f"Token URL: {token_url}")
+    print(f"\n{'='*80}")
+    print(f"🔑 OAuth Token Generation")
+    print(f"{'='*80}")
+    print(f"Token URL: {TOKEN_URL}")
     
     try:
-        # Get credentials if not provided
-        if not client_id or not client_secret:
-            creds = get_credentials()
-            client_id = creds['client_id']
-            client_secret = creds['client_secret']
+        # Get credentials from storage
+        print(f"\n📋 Retrieving credentials from storage...")
+        creds = get_credentials()
+        client_id = creds['client_id']
+        client_secret = creds['client_secret']
+        print(f"✓ Credentials retrieved successfully")
         
         # Request token (MuleSoft uses JSON, not form data)
+        print(f"\n🌐 Requesting OAuth token from MuleSoft Anypoint...")
+        print(f"   Method: POST")
+        print(f"   Content-Type: application/json")
+        print(f"   Grant Type: client_credentials")
+        
         response = requests.post(
-            token_url,
+            TOKEN_URL,
             json={
                 'grant_type': 'client_credentials',
                 'client_id': client_id,
@@ -153,9 +195,13 @@ def generate_bearer_token(
             timeout=10
         )
         
+        print(f"   Response Status: {response.status_code}")
+        
         if response.status_code != 200:
             error = f"Token request failed: {response.status_code} - {response.text}"
-            print(f"  ✗ {error}")
+            print(f"\n✗ Token generation failed")
+            print(f"  Error: {error}")
+            print(f"{'='*80}\n")
             return {
                 'success': False,
                 'error': error
@@ -165,14 +211,19 @@ def generate_bearer_token(
         
         if 'access_token' not in token_data:
             error = "No access_token in response"
-            print(f"  ✗ {error}")
+            print(f"\n✗ Token generation failed")
+            print(f"  Error: {error}")
+            print(f"{'='*80}\n")
             return {
                 'success': False,
                 'error': error
             }
         
-        print(f"  ✓ Token generated successfully")
-        print(f"  Expires in: {token_data.get('expires_in', 'unknown')} seconds")
+        print(f"\n✅ Token generated successfully!")
+        print(f"   Token Type: {token_data.get('token_type', 'Bearer')}")
+        print(f"   Expires In: {token_data.get('expires_in', 'unknown')} seconds")
+        print(f"   Token: {token_data['access_token'][:20]}...{token_data['access_token'][-10:]}")
+        print(f"{'='*80}\n")
         
         return {
             'success': True,
@@ -183,14 +234,18 @@ def generate_bearer_token(
         
     except requests.exceptions.RequestException as e:
         error = f"Request failed: {str(e)}"
-        print(f"  ✗ {error}")
+        print(f"\n✗ Token generation failed - Network error")
+        print(f"  Error: {error}")
+        print(f"{'='*80}\n")
         return {
             'success': False,
             'error': error
         }
     except Exception as e:
         error = f"Token generation failed: {str(e)}"
-        print(f"  ✗ {error}")
+        print(f"\n✗ Token generation failed - Unexpected error")
+        print(f"  Error: {error}")
+        print(f"{'='*80}\n")
         return {
             'success': False,
             'error': error
@@ -204,6 +259,12 @@ if __name__ == '__main__':
     print("="*80)
     print()
     
+    print(f"Hardcoded Configuration:")
+    print(f"  Token URL: {TOKEN_URL}")
+    print(f"  Secret Name: {SECRET_NAME}")
+    print(f"  Secret Keys: {SECRET_KEY_CLIENT_ID}, {SECRET_KEY_CLIENT_SECRET}")
+    print()
+    
     # Test credential retrieval
     try:
         creds = get_credentials()
@@ -214,18 +275,13 @@ if __name__ == '__main__':
         print(f"\n✗ Failed to get credentials: {e}")
         exit(1)
     
-    # Test token generation (requires token URL)
-    token_url = os.environ.get('TOKEN_URL')
-    if token_url:
-        print(f"\n\nTesting token generation...")
-        result = generate_bearer_token(token_url)
-        
-        if result['success']:
-            print(f"\n✓ Token generated:")
-            print(f"  Token: {result['token'][:20]}...")
-            print(f"  Expires in: {result['expires_in']} seconds")
-        else:
-            print(f"\n✗ Token generation failed: {result['error']}")
+    # Test token generation (uses hardcoded config)
+    print(f"\n\nTesting token generation...")
+    result = generate_bearer_token()
+    
+    if result['success']:
+        print(f"\n✓ Token generated:")
+        print(f"  Token: {result['token'][:20]}...")
+        print(f"  Expires in: {result['expires_in']} seconds")
     else:
-        print("\n\nSkipping token generation test (TOKEN_URL not set)")
-        print("Set TOKEN_URL environment variable to test token generation")
+        print(f"\n✗ Token generation failed: {result['error']}")

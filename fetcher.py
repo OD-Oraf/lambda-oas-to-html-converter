@@ -18,8 +18,7 @@ except ImportError:
 def fetch_oas_from_url(
     url: str, 
     timeout: int = 30,
-    use_auth: bool = False,
-    token_url: Optional[str] = None
+    use_auth: bool = False
 ) -> Dict[str, any]:
     """
     Fetch OAS file from a URL
@@ -27,8 +26,7 @@ def fetch_oas_from_url(
     Args:
         url: URL to fetch OAS file from
         timeout: Request timeout in seconds
-        use_auth: Whether to use bearer token authentication
-        token_url: OAuth token endpoint URL (required if use_auth=True)
+        use_auth: Whether to use bearer token authentication (MuleSoft Anypoint)
     
     Returns:
         Dictionary with:
@@ -53,19 +51,8 @@ def fetch_oas_from_url(
                     'error': error
                 }
             
-            if not token_url:
-                # Try to get token_url from environment
-                token_url = os.environ.get('TOKEN_URL')
-                if not token_url:
-                    error = "TOKEN_URL not provided and not found in environment"
-                    print(f"❌ Error: {error}")
-                    return {
-                        'success': False,
-                        'error': error
-                    }
-            
             print(f"🔐 Requesting bearer token...")
-            token_result = generate_bearer_token(token_url)
+            token_result = generate_bearer_token()
             
             if not token_result['success']:
                 error = f"Failed to generate token: {token_result['error']}"
@@ -269,8 +256,7 @@ def fetch_urls_from_file(filepath: str = "urls.txt") -> Dict[str, any]:
 def fetch_all_from_urls_file(
     urls_file: str = "urls.txt", 
     timeout: int = 30,
-    use_auth: bool = False,
-    token_url: Optional[str] = None
+    use_auth: bool = False
 ) -> Dict[str, any]:
     """
     Fetch all OAS files from URLs listed in a file
@@ -278,8 +264,7 @@ def fetch_all_from_urls_file(
     Args:
         urls_file: Path to file containing URLs (one per line)
         timeout: Request timeout for each URL
-        use_auth: Whether to use bearer token authentication
-        token_url: OAuth token endpoint URL (required if use_auth=True)
+        use_auth: Whether to use bearer token authentication (MuleSoft Anypoint)
     
     Returns:
         Dictionary with:
@@ -315,7 +300,7 @@ def fetch_all_from_urls_file(
     for i, url in enumerate(urls, 1):
         print(f"[{i}/{total}] Processing: {url}")
         
-        result = fetch_oas_from_url(url, timeout=timeout, use_auth=use_auth, token_url=token_url)
+        result = fetch_oas_from_url(url, timeout=timeout, use_auth=use_auth)
         result['url'] = url  # Add URL to result
         results.append(result)
         
