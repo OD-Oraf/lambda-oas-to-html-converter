@@ -1,0 +1,87 @@
+## Lambda Manual Invocation Quick Reference
+
+The Lambda function supports manual invocation for on-demand processing.
+
+---
+
+### Basic Manual Invocation
+
+```bash
+aws lambda invoke \
+  --function-name lambda-layers-demo \
+  --payload '{"s3_bucket":"my-bucket","urls_file":"urls.txt"}' \
+  --cli-binary-format raw-in-base64-out \
+  response.json
+```
+
+### With Verbose Logging
+
+```bash
+aws lambda invoke \
+  --function-name lambda-layers-demo \
+  --payload '{"s3_bucket":"my-bucket","urls_file":"urls.txt","verbose":true}' \
+  --cli-binary-format raw-in-base64-out \
+  response.json
+```
+
+### Using Test Event File
+
+```bash
+# Edit test-manual-event.json with your bucket name
+aws lambda invoke \
+  --function-name lambda-layers-demo \
+  --payload file://test-manual-event.json \
+  --cli-binary-format raw-in-base64-out \
+  response.json
+```
+
+### Check Response
+
+```bash
+cat response.json | jq
+```
+
+Expected output:
+```json
+{
+  "statusCode": 200,
+  "body": {
+    "message": "Batch processing complete",
+    "s3_bucket": "my-bucket",
+    "total_urls": 4,
+    "successful": 4,
+    "failed": 0,
+    "results": [...]
+  }
+}
+```
+
+---
+
+### When to Use Manual Invocation
+
+✅ On-demand processing without uploading urls.txt
+✅ Testing Lambda function
+✅ Scheduled processing via EventBridge/CloudWatch
+✅ Integration with other AWS services
+✅ Debugging with verbose logging
+
+---
+
+### When to Use Automatic Trigger
+
+✅ Regular workflow when urls.txt is updated
+✅ Simpler workflow (just upload file)
+✅ No AWS CLI command needed
+✅ Event-driven architecture
+
+---
+
+### Both Modes Do the Same Thing
+
+1. Read urls.txt from S3
+2. Fetch all URLs
+3. Convert to HTML
+4. Upload to s3://bucket/html/
+
+Choose the mode that fits your workflow!

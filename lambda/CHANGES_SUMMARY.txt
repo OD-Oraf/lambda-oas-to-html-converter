@@ -1,0 +1,88 @@
+## ✅ Lambda Function Updated for S3 Event Triggers Only
+
+The Lambda function now ONLY responds to S3 event triggers when urls.txt is uploaded.
+
+---
+
+### What Changed:
+
+1. **Lambda Handler Updated**
+   - Now expects S3 event notification format
+   - Automatically extracts bucket and key from S3 event
+   - Only processes files ending with "urls.txt"
+   - Rejects other file uploads
+
+2. **Event Structure**
+   ```json
+   {
+     "Records": [{
+       "s3": {
+         "bucket": {"name": "my-bucket"},
+         "object": {"key": "urls.txt"}
+       }
+     }]
+   }
+   ```
+
+3. **Workflow**
+   ```
+   Upload urls.txt → S3 Event → Lambda Auto-Triggers → Process All URLs → Upload HTML
+   ```
+
+---
+
+### Files Created/Updated:
+
+✅ lambda/lambda_function.py - S3 event trigger handler
+✅ lambda/test-s3-upload-event.json - S3 event test format
+✅ lambda/s3-event-config.json - S3 notification configuration
+✅ lambda/S3_TRIGGER_SETUP.md - Complete setup guide
+✅ lambda/S3_UPLOAD_USAGE.txt - Updated usage guide
+
+---
+
+### Setup Commands:
+
+# 1. Deploy Lambda
+cd /Users/od/Documents/lambda-layers/lambda
+./deploy.sh
+
+# 2. Add S3 trigger permission
+aws lambda add-permission \
+  --function-name lambda-layers-demo \
+  --statement-id s3-trigger \
+  --action lambda:InvokeFunction \
+  --principal s3.amazonaws.com \
+  --source-arn arn:aws:s3:::YOUR-BUCKET
+
+# 3. Configure S3 event notification (edit s3-event-config.json first)
+aws s3api put-bucket-notification-configuration \
+  --bucket YOUR-BUCKET \
+  --notification-configuration file://s3-event-config.json
+
+# 4. Test by uploading urls.txt
+aws s3 cp ../urls.txt s3://YOUR-BUCKET/urls.txt
+
+---
+
+### Daily Usage:
+
+# Upload urls.txt (automatically triggers Lambda)
+aws s3 cp urls.txt s3://my-bucket/urls.txt
+
+# Check results
+aws s3 ls s3://my-bucket/html/
+
+---
+
+### Key Benefits:
+
+✅ Fully automatic - no manual Lambda invocations
+✅ Event-driven architecture
+✅ One bucket for everything (urls.txt and html/)
+✅ Only processes urls.txt files
+✅ Scalable and production-ready
+
+---
+
+See S3_TRIGGER_SETUP.md for complete setup instructions.

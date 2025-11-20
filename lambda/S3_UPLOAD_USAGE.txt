@@ -1,0 +1,331 @@
+# Lambda S3 Processing - Automatic & Manual
+
+## ✅ Lambda Function - Dual Mode Support
+
+The Lambda function supports **two modes**:
+1. **Automatic** - S3 event trigger (primary)
+2. **Manual** - Direct Lambda invocation (secondary)
+
+Both modes process urls.txt from S3 and upload HTML files to the same bucket's "html/" folder.
+
+---
+
+## Mode 1: Automatic Trigger (Recommended)
+
+### S3 Event Trigger
+
+**Step 1:** Upload urls.txt to S3
+```bash
+aws s3 cp urls.txt s3://my-bucket/urls.txt
+```
+
+**Step 2:** Lambda automatically triggers and:
+- Reads `urls.txt` from `s3://my-bucket/urls.txt`
+- Fetches all URLs in the file
+- Converts each to HTML
+- Uploads all to: `s3://my-bucket/html/`
+  - `html/api1.html`
+  - `html/api2.html`
+  - `html/api3.html`
+  - etc.
+
+**Step 3:** Done! HTML files are ready.
+
+**Best for:** Regular/scheduled processing when urls.txt is updated.
+
+---
+
+## Mode 2: Manual Invocation
+
+### Direct Lambda Call
+
+**Step 1:** Invoke Lambda manually
+```bash
+aws lambda invoke \
+  --function-name lambda-layers-demo \
+  --payload '{"s3_bucket":"my-bucket","urls_file":"urls.txt"}' \
+  --cli-binary-format raw-in-base64-out \
+  response.json
+```
+
+**Step 2:** Lambda processes:
+- Reads `urls.txt` from `s3://my-bucket/urls.txt`
+- Fetches all URLs
+- Converts to HTML
+- Uploads to `s3://my-bucket/html/`
+
+**Step 3:** Check response
+```bash
+cat response.json | jq
+```
+
+**Best for:** On-demand processing, testing, or manual triggers.
+
+---
+
+## Event Structures
+
+### Automatic Trigger (S3 Event)
+
+When urls.txt is uploaded, S3 sends this event to Lambda:
+
+```json
+{
+  "Records": [
+    {
+      "eventSource": "aws:s3",
+      "eventName": "ObjectCreated:Put",
+      "s3": {
+        "bucket": {"name": "my-bucket"},
+        "object": {"key": "urls.txt"}
+      }
+    }
+  ]
+}
+```
+
+### Manual Invocation Event
+
+For direct Lambda calls:
+
+```json
+{
+  "s3_bucket": "my-bucket",
+  "urls_file": "urls.txt",
+  "verbose": true
+}
+```
+
+Parameters:
+- `s3_bucket` (required): S3 bucket name
+- `urls_file` (optional): URLs file name, defaults to "urls.txt"
+- `verbose` (optional): Enable verbose logging, defaults to false
+
+---
+
+## Response Format
+
+### Batch Processing:
+```json
+{
+  "statusCode": 200,
+  "body": {
+    "message": "Batch processing complete",
+    "s3_bucket": "my-bucket",
+    "total_urls": 4,
+    "successful": 3,
+    "failed": 1,
+    "results": [
+      {
+        "url": "https://example.com/api1.json",
+        "filename": "api1.json",
+        "success": true,
+        "s3_url": "s3://my-bucket/html/api1.html",
+        "s3_key": "html/api1.html",
+        "html_size": 1535320,
+        "duration": 3.19
+      },
+      ...
+    ]
+  }
+}
+```
+
+---
+
+## Setup (One-Time)
+
+See **S3_TRIGGER_SETUP.md** for complete setup instructions.
+
+### Quick Setup:
+```bash
+# 1. Deploy Lambda
+cd /Users/od/Documents/lambda-layers/lambda
+./deploy.sh
+
+# 2. Add S3 trigger permission
+aws lambda add-permission \
+  --function-name lambda-layers-demo \
+  --statement-id s3-trigger \
+  --action lambda:InvokeFunction \
+  --principal s3.amazonaws.com \
+  --source-arn arn:aws:s3:::YOUR-BUCKET
+
+# 3. Configure S3 event notification
+aws s3api put-bucket-notification-configuration \
+  --bucket YOUR-BUCKET \
+  --notification-configuration file://s3-event-config.json
+
+# 4. Upload urls.txt to trigger
+aws s3 cp ../urls.txt s3://YOUR-BUCKET/urls.txt
+```
+
+---
+
+## Usage
+
+### Automatic Mode (Primary)
+
+Every time you want to process URLs:
+
+```bash
+# 1. Edit urls.txt locally
+nano urls.txt
+
+# 2. Upload to S3 (automatically triggers Lambda)
+aws s3 cp urls.txt s3://my-bucket/urls.txt
+
+# 3. Check results
+aws s3 ls s3://my-bucket/html/
+```
+
+**That's it!** Lambda runs automatically.
+
+### Manual Mode (Secondary)
+
+For on-demand processing or testing:
+
+```bash
+# Invoke Lambda directly
+aws lambda invoke \
+  --function-name lambda-layers-demo \
+  --payload '{"s3_bucket":"my-bucket","urls_file":"urls.txt","verbose":true}' \
+  --cli-binary-format raw-in-base64-out \
+  response.json
+
+# Check response
+cat response.json | jq
+
+# Check results
+aws s3 ls s3://my-bucket/html/
+```
+
+Or use test event file:
+```bash
+aws lambda invoke \
+  --function-name lambda-layers-demo \
+  --payload file://test-manual-event.json \
+  --cli-binary-format raw-in-base64-out \
+  response.json
+```
+
+---
+
+## File Naming
+
+The HTML filename is derived from the OAS filename:
+- `api.json` → `html/api.html`
+- `api.yaml` → `html/api.html`
+- `my-spec.yml` → `html/my-spec.html`
+- `petstore.json` → `html/petstore.html`
+
+All HTML files go to the `html/` prefix/folder in S3.
+
+---
+
+## Logs
+
+### Automatic Trigger Logs:
+```
+================================================================================
+🚀 Lambda Handler Started
+================================================================================
+
+📥 S3 Event Notification (Automatic Trigger)
+Bucket: my-bucket
+Key: urls.txt
+
+🔄 Batch Processing Mode
+Bucket: my-bucket
+URLs file: urls.txt
+
+📋 Reading URLs from file...
+Path: s3://my-bucket/urls.txt
+  S3 Bucket: my-bucket
+  S3 Key: urls.txt
+✓ Successfully read
+  URLs found: 4
+
+Found 4 URLs to process
+
+[1/4] Processing: https://example.com/api1.json
+  ✓ Fetched: api1.json (7357 bytes)
+  ✓ Converted: 1535320 bytes (3.19s)
+  ✓ Uploaded to: s3://my-bucket/html/api1.html
+
+[2/4] Processing: https://example.com/api2.yaml
+  ...
+
+================================================================================
+📊 Batch Processing Summary
+================================================================================
+Total URLs: 4
+Successful: 4
+Failed: 0
+================================================================================
+```
+
+### Manual Invocation Logs:
+```
+================================================================================
+🚀 Lambda Handler Started
+================================================================================
+
+🔧 Manual Invocation
+Bucket: my-bucket
+URLs file: urls.txt
+
+🔄 Batch Processing Mode
+Bucket: my-bucket
+URLs file: urls.txt
+
+📋 Reading URLs from file...
+Path: s3://my-bucket/urls.txt
+  S3 Bucket: my-bucket
+  S3 Key: urls.txt
+✓ Successfully read
+  URLs found: 4
+
+Found 4 URLs to process
+
+[1/4] Processing: https://example.com/api1.json
+  ✓ Fetched: api1.json (7357 bytes)
+  ✓ Converted: 1535320 bytes (3.19s)
+  ✓ Uploaded to: s3://my-bucket/html/api1.html
+
+...
+
+================================================================================
+📊 Batch Processing Summary
+================================================================================
+Total URLs: 4
+Successful: 4
+Failed: 0
+================================================================================
+```
+
+---
+
+## Summary
+
+**Key Points:**
+1. **Dual Mode**: Automatic S3 trigger OR manual invocation
+2. **Same Bucket**: All operations in one bucket (urls.txt → fetch → convert → upload html/)
+3. **Automatic Mode** (Primary): Lambda auto-runs when urls.txt is uploaded
+4. **Manual Mode** (Secondary): Direct Lambda invocation for on-demand processing
+5. **Batch Processing**: Processes all URLs in urls.txt in one run
+6. **Detailed Results**: Response includes status for each URL processed
+
+**Workflows:**
+
+Automatic:
+```
+Upload urls.txt → S3 Event → Lambda Triggers → Process URLs → Upload HTML
+```
+
+Manual:
+```
+Invoke Lambda → Read urls.txt from S3 → Process URLs → Upload HTML
+```
+
+**Setup once, use both modes as needed!**

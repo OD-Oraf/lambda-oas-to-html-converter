@@ -1,0 +1,4 @@
+https://raw.githubusercontent.com/OD-Oraf/scratch/refs/heads/master/oas-examples/3.0/yaml/circular-paths.yaml
+https://raw.githubusercontent.com/OD-Oraf/scratch/refs/heads/master/oas-examples/3.0/yaml/circular.yaml
+https://raw.githubusercontent.com/OD-Oraf/scratch/refs/heads/master/oas-examples/3.0/yaml/petstore-simple-no-tags.yaml
+https://github.com/OD-Oraf/scratch/raw/refs/heads/master/oas-examples/3.0/yaml/readme.yaml

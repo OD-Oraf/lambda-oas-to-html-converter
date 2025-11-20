@@ -1,0 +1,19 @@
+{
+  "LambdaFunctionConfigurations": [
+    {
+      "Id": "urls-txt-upload-trigger",
+      "LambdaFunctionArn": "arn:aws:lambda:REGION:ACCOUNT_ID:function:lambda-layers-demo",
+      "Events": ["s3:ObjectCreated:*"],
+      "Filter": {
+        "Key": {
+          "FilterRules": [
+            {
+              "Name": "suffix",
+              "Value": "urls.txt"
+            }
+          ]
+        }
+      }
+    }
+  ]
+}
