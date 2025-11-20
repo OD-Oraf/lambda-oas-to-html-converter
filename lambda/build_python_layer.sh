@@ -30,12 +30,12 @@ echo ""
 
 # Install dependencies to layer directory
 echo "📦 Installing Python dependencies..."
-echo "  Installing requests and its dependencies..."
+echo "  Installing requests, pandas and their dependencies..."
 
 pip3 install \
   --target build/python-layer/python \
   --upgrade \
-  requests
+  requests pandas
 
 echo "  ✓ Dependencies installed"
 echo ""
@@ -71,7 +71,7 @@ echo ""
 echo "  1. Publish layer to AWS:"
 echo "     aws lambda publish-layer-version \\"
 echo "       --layer-name python-dependencies \\"
-echo "       --description 'Python dependencies (requests)' \\"
+echo "       --description 'Python dependencies (requests, pandas)' \\"
 echo "       --zip-file fileb://python-layer.zip \\"
 echo "       --compatible-runtimes python3.11 python3.12 python3.13"
 echo ""
@@ -91,8 +91,8 @@ echo ""
 echo "════════════════════════════════════════════════════════════════════════════════"
 
 
-aws lambda publish-layer-version \
---layer-name python-dependencies \
---description 'Python dependencies (requests)' \
---zip-file fileb://python-layer.zip \
---compatible-runtimes python3.11 python3.12 python3.13 python3.14
+#aws lambda publish-layer-version \
+#--layer-name python-dependencies \
+#--description 'Python dependencies (requests, pandas)' \
+#--zip-file fileb://python-layer.zip \
+#--compatible-runtimes python3.11 python3.12 python3.13 python3.14
