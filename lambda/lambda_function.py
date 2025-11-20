@@ -214,6 +214,8 @@ def _batch_process_from_s3(event):
     bucket = event['s3_bucket']
     urls_file = event.get('urls_file', 'urls.txt')
     verbose = event.get('verbose', False)
+    use_auth = event.get('use_auth', False)
+    token_url = event.get('token_url')
     
     print(f"Bucket: {bucket}")
     print(f"URLs file: {urls_file}")
@@ -247,7 +249,7 @@ def _batch_process_from_s3(event):
             
             try:
                 # Fetch OAS
-                fetch_result = fetch_oas_from_url(url)
+                fetch_result = fetch_oas_from_url(url, use_auth=use_auth, token_url=token_url)
                 
                 if not fetch_result['success']:
                     print(f"  ✗ Fetch failed: {fetch_result['error']}\n")
