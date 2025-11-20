@@ -17,7 +17,7 @@
             ]
         },
         {
-            "Sid": "ReadOASFilesFromS3",
+            "Sid": "ReadFromS3",
             "Effect": "Allow",
             "Action": [
                 "s3:GetObject",
@@ -25,18 +25,29 @@
             ],
             "Resource": [
                 "arn:aws:s3:::oo-lambda-layers-demo",
-                "arn:aws:s3:::oo-lambda-layers-demo/oas-files/*"
+                "arn:aws:s3:::oo-lambda-layers-demo/*"
             ]
         },
         {
-            "Sid": "CloudWatchLogs",
+            "Sid": "WriteHTMLToS3",
             "Effect": "Allow",
             "Action": [
-                "logs:CreateLogGroup",
-                "logs:CreateLogStream",
-                "logs:PutLogEvents"
+                "s3:PutObject",
+                "s3:PutObjectAcl"
             ],
-            "Resource": "arn:aws:logs:*:*:*"
+            "Resource": [
+                "arn:aws:s3:::oo-lambda-layers-demo/html/*"
+            ]
+        },
+        {
+            "Sid": "AccessSecretsManager",
+            "Effect": "Allow",
+            "Action": [
+                "secretsmanager:GetSecretValue"
+            ],
+            "Resource": [
+                "arn:aws:secretsmanager:us-east-1:289491622160:secret:token_cred*"
+            ]
         }
     ]
 }
