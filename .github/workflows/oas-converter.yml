@@ -1,0 +1,83 @@
+name: OAS to HTML Converter
+
+on:
+  # Trigger on push to urls.txt
+  push:
+    paths:
+      - 'urls.txt'
+    branches:
+      - main
+  
+  # Manual trigger
+  workflow_dispatch:
+    inputs:
+      urls_file:
+        description: 'Path to URLs file'
+        required: false
+        default: 'urls.txt'
+      use_auth:
+        description: 'Use authentication (MuleSoft Anypoint)'
+        required: false
+        type: boolean
+        default: false
+      verbose:
+        description: 'Verbose output'
+        required: false
+        type: boolean
+        default: false
+
+jobs:
+  convert-oas:
+    runs-on: ubuntu-latest
+    
+    permissions:
+      contents: write  # For committing HTML files
+      id-token: write  # For AWS authentication
+    
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: 'pip'
+      
+      - name: Install Python dependencies
+        run: |
+          pip install --upgrade pip
+          pip install requests pandas
+      
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ secrets.AWS_REGION || 'us-east-1' }}
+      
+      - name: Process OAS files
+        env:
+          CLIENT_ID: ${{ secrets.MULESOFT_CLIENT_ID }}
+          CLIENT_SECRET: ${{ secrets.MULESOFT_CLIENT_SECRET }}
+          S3_BUCKET: ${{ secrets.S3_BUCKET }}
+          USE_AUTH: ${{ github.event.inputs.use_auth || 'false' }}
+          URLS_FILE: ${{ github.event.inputs.urls_file || 'urls.txt' }}
+          VERBOSE: ${{ github.event.inputs.verbose || 'false' }}
+        run: |
+          python .github/scripts/process_oas.py
+      
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: html-files
+          path: output/html/
+          retention-days: 30
+      
+      - name: Summary
+        run: |
+          echo "## OAS Conversion Complete! ✅" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Files processed:** $(ls -1 output/html/ 2>/dev/null | wc -l)" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "### Generated HTML files:" >> $GITHUB_STEP_SUMMARY
+          ls -1 output/html/ 2>/dev/null | sed 's/^/- /' >> $GITHUB_STEP_SUMMARY || echo "No files generated" >> $GITHUB_STEP_SUMMARY
